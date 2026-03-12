@@ -1,0 +1,29 @@
+services:
+  mihomo:
+    container_name: mihomo
+    image: metacubex/mihomo:latest   # 或 :latest / 指定版本
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - ALL
+    security_opt:
+      - apparmor:unconfined
+    pid: host
+    ipc: host
+    volumes:
+      - ./config:/root/.config/mihomo
+      - /dev/net/tun:/dev/net/tun
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+  zashboard:
+    container_name: zashboard
+    image: ghcr.io/zephyruso/zashboard:latest   # 官方 Docker 镜像
+    restart: unless-stopped
+    ports:
+      - "9097:80"   # 映射到主机 9097 端口（可改成你喜欢的）
+    environment:
+      - TZ=Asia/Shanghai   # 可选，设置时区
+    # 可选：如果 mihomo 和 zashboard 不在同一主机，可设置默认后端
+    # environment:
+    #   - DEFAULT_BACKEND_URL=http://你的Mihomo-IP:9090
