@@ -1,29 +1,42 @@
 services:
   mihomo:
     container_name: mihomo
-    image: metacubex/mihomo:latest   # 或 :latest / 指定版本
+    image: metacubex/mihomo:latest
     restart: unless-stopped
+    # 使用 host 模式，让容器直接使用宿主机网络栈，避免复杂的 NAT 转换
     network_mode: host
+    # 给予容器必要的系统权限以管理 TUN 网卡和流量
     cap_add:
-      - ALL
+      - NET_ADMIN
+      - NET_RAW
+    # 将配置文件和 TUN 设备映射进容器
     security_opt:
-      - apparmor:unconfined
-    pid: host
-    ipc: host
+      - label:disable # 解除 SELinux 对容器网卡的限制
     volumes:
       - ./config:/root/.config/mihomo
       - /dev/net/tun:/dev/net/tun
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    # 增加存活检查，确保容器死后自动重启
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9090"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   zashboard:
     container_name: zashboard
-    image: ghcr.io/zephyruso/zashboard:latest   # 官方 Docker 镜像
+    image: ghcr.io/zephyruso/zashboard:latest
     restart: unless-stopped
     ports:
-      - "9097:80"   # 映射到主机 9097 端口（可改成你喜欢的）
+      - "9097:80"
     environment:
-      - TZ=Asia/Shanghai   # 可选，设置时区
-    # 可选：如果 mihomo 和 zashboard 不在同一主机，可设置默认后端
-    # environment:
-    #   - DEFAULT_BACKEND_URL=http://你的Mihomo-IP:9090
+      - TZ=Asia/Shanghai
+    # 依赖 Mihomo 启动后再启动 Zashboard
+    depends_on:
+      - mihomo
