@@ -13,7 +13,7 @@ ipv6: false
 
 # 外部控制面板 (macOS 瀏覽器可訪問 http://127.0.0.1:9090)
 external-controller: 0.0.0.0:9090
-secret: "2161023252"
+secret: ""
 
 # --- 1. Core Network (核心網絡) ---
 
