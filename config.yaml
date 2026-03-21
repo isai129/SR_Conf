@@ -10,7 +10,7 @@ mode: Rule
 log-level: warning
 unified-delay: true
 external-controller: 0.0.0.0:9090
-secret: 2161023252
+secret: 
 experimental:
   ignore-resolve-fail: true
 
