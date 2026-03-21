@@ -1,0 +1,330 @@
+# Profile Enhancement Template for Clash Verge (Local Takeover Mode)
+# 邏輯：本地接管訂閱，實現遠程更新與本地備份自洽
+
+# --- 基礎設置 ---
+port: 7890
+socks-port: 7891
+mixed-port: 7892
+allow-lan: true
+mode: rule
+log-level: info
+unified-delay: true
+ipv6: false
+
+# 外部控制面板 (macOS 瀏覽器可訪問 http://127.0.0.1:9090)
+external-controller: 0.0.0.0:9090
+secret: "2161023252"
+
+# --- 1. Core Network (核心網絡) ---
+
+# 嗅探設置：屏蔽 QUIC 確保分流準確
+sniffer:
+  enable: true
+  sniff:
+    TLS: { ports: [443, 8443] }
+    HTTP: { ports: [80, 8080-8888], override-destination: true }
+    QUIC: { ports: [443, 8443] }
+  skip-certs: true
+
+# 2. TUN 模式 (macOS 最佳接管方案)
+tun:
+  enable: true
+  stack: system
+  auto-route: true
+  auto-detect-interface: true
+  dns-hijack: [any:53]
+  strict-route: true
+
+# 3. DNS 策略 (防止泄露與污染)
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  default-nameserver: [223.5.5.5, 119.29.29.29]
+  nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  nameserver-policy:
+    "geosite:cn": [223.5.5.5, 119.29.29.29]
+    "geosite:geolocation-!cn": [https://dns.cloudflare.com/dns-query, https://dns.google/dns-query]
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "geosite:cn"
+    - "geosite:private"
+    - "+.apple.com"
+    - "+.icloud.com"
+
+# --- 2. Providers (節點供應鏈 - 邏輯自洽核心) ---
+proxy-providers:
+  # 【動態源】遠程訂閱鏈接，內核會自動在 path 路徑下生成快照
+  remote_sub:
+    type: http
+    url: "https://" # <--- 請在此處填入鏈接
+    interval: 86400
+    path: ./sub/airport_dynamic.yaml
+    client-fingerprint: chrome # [修复] 移动到此处，解决全局弃用报错
+    health-check:
+      enable: true
+      interval: 1800
+      url: https://www.gstatic.com/generate_204
+
+  # 【靜態源】手動備份
+  local_backup:
+    type: file
+    path: ./sub/backup.yaml
+    client-fingerprint: chrome # [修复] 备份文件也需加上指纹
+    health-check:
+      enable: true
+      interval: 86400
+      url: https://www.gstatic.com/generate_204
+
+# --- 3. Proxy Groups (策略組調度) ---
+proxy-groups:
+  # 【 核心控制 】
+  - name: Proxy
+    type: select
+    use: [remote_sub] # 調用動態與源
+    proxies: [Auto, HK, TW, JP, US, SG, DIRECT]
+
+  - name: AI
+    type: select
+    use: [remote_sub]
+    filter: "^(?i)(?!.*(HK|香港)).*(TW|US|JP|SG|HK)"
+    proxies: [TW, HK, JP, SG, US]
+
+  - name: Telegram
+    type: select
+    proxies: [SG, HK, JP, US, Proxy]
+
+  - name: GitHub
+    type: select
+    proxies: [Proxy, US, SG, HK, DIRECT]
+
+  - name: Steam
+    type: select
+    proxies: [DIRECT, HK, TW, US, Proxy]
+
+  - name: Google
+    type: select
+    proxies: [Proxy, TW, HK, JP, SG, US]
+
+  - name: Apple
+    type: select
+    proxies: [DIRECT, Proxy, TW, HK, US]
+
+  - name: Microsoft
+    type: select
+    proxies: [DIRECT, Proxy, US, HK, TW]
+
+  - name: Unlock
+    type: select
+    use: [remote_sub, ]
+    filter: "(?i)CN|中國|貝塔|贝塔|盛宴|回國"
+    proxies: [DIRECT,Proxy]
+
+  - name: Backup
+    type: select
+    use: [local_backup]
+    proxies: [DIRECT, Proxy]
+  
+  # 【 區域自動選擇 】
+  - name: Auto
+    type: url-test
+    use: [remote_sub]
+    filter: "^(?i)(?!.*(x5|流量|過期)).*(HK|TW|JP|US|SG)"
+    interval: 1800 # 自动选路保持 10 分钟一次，确保节点切换灵敏度
+    tolerance: 50
+    url: https://www.gstatic.com/generate_204
+
+  # 【 區域池 - 懶加載模式 (彻底解决重复平凡测速) 】
+  - name: HK
+    type: url-test
+    use: [remote_sub]
+    filter: "(?i)HK|香港|九龍|波瀾|嘉禾|安魂|鎧甲|契約|奇點|判官|靈魂"
+    interval: 3600
+    lazy: true # 重点：只要 Zashboard 不切到这一组，就绝不测速
+
+  - name: TW
+    type: url-test
+    use: [remote_sub]
+    filter: "(?i)TW|台灣|台北|彰化|寶島|動畫瘋"
+    interval: 3600
+    lazy: true
+
+  - name: JP
+    type: url-test
+    use: [remote_sub]
+    filter: "(?i)JP|日本|東京|大和|柯南|星移"
+    interval: 3600
+    lazy: true
+
+  - name: US
+    type: url-test
+    use: [remote_sub]
+    filter: "(?i)US|美國|加州|川譜|神像|勝地|空靈"
+    interval: 3600
+    lazy: true
+
+  - name: SG
+    type: url-test
+    use: [remote_sub]
+    filter: "(?i)SG|新加坡|星島|烈焰"
+    interval: 3600
+    lazy: true
+
+  - name: Final
+    type: select
+    proxies: [Proxy, DIRECT]
+
+# --- 4. Rule Providers (規則集 - 外部引用) ---
+rule-providers:
+  # --- 基础库 ( Loyalsoldier 源 ) ---
+  Ads:
+    type: http
+    behavior: domain
+    path: ./rules/ads.yaml
+    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt
+    interval: 86400
+
+  Private:
+    type: http
+    behavior: domain
+    path: ./rules/private.yaml
+    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/private.txt
+    interval: 86400
+
+  # --- 专项黑名单 (被屏蔽的网站直达) ---
+  GFWList:
+    type: http
+    behavior: domain
+    path: ./rules/gfwlist.yaml
+    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt
+    interval: 86400
+
+  China:
+    type: http
+    behavior: domain
+    path: ./rules/china.yaml
+    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt
+    interval: 86400
+
+  ChinaIP:
+    type: http
+    behavior: ipcidr
+    path: ./rules/chinaip.yaml
+    url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/cncidr.txt
+    interval: 86400
+
+  # --- 专项库 ( Blackmatrix7 源 ) ---
+  AI:
+    type: http
+    behavior: classical
+    path: ./rules/ai.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OpenAI/OpenAI.yaml
+    interval: 86400
+
+  GitHub:
+    type: http
+    behavior: classical
+    path: ./rules/github.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub.yaml
+    interval: 86400
+
+  Steam:
+    type: http
+    behavior: classical
+    path: ./rules/steam.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Steam/Steam.yaml
+    interval: 86400
+
+  Apple:
+    type: http
+    behavior: classical
+    path: ./rules/apple.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Apple/Apple.yaml
+    interval: 86400
+
+  Google:
+    type: http
+    behavior: classical
+    path: ./rules/google.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Google/Google.yaml
+    interval: 86400
+
+  Telegram:
+    type: http
+    behavior: classical
+    path: ./rules/telegram.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Telegram/Telegram.yaml
+    interval: 86400
+
+  Microsoft:
+    type: http
+    behavior: classical
+    path: ./rules/microsoft.yaml
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Microsoft/Microsoft.yaml
+    interval: 86400
+
+# --- 5. Rules 分流 ---
+rules:
+  # ------------------------------------------------------------
+  # 【自定义 - 优先级最高】在此处添加你的单条临时规则
+  # ------------------------------------------------------------
+  # - DOMAIN,example.com,DIRECT              # 精确匹配域名
+  # - DOMAIN-SUFFIX,google.com,Proxy         # 后缀匹配（最推荐）
+  # - DOMAIN-KEYWORD,openai,AI               # 关键字匹配
+  # - IP-CIDR,1.1.1.1/32,HK,no-resolve       # 单个 IP 匹配
+  # - IP-CIDR,192.168.1.0/24,DIRECT          # 局域网绕过
+
+  # --- 基础过滤 (必须放在前面) ---
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve # 补充常见局域网段
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve # 补充常见局域网段
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,192.254.0.0/16,DIRECT,no-resolve
+  - RULE-SET,Ads,REJECT
+  - RULE-SET,Private,DIRECT
+  - IP-CIDR6,::/0,REJECT,no-resolve
+
+  # --- 1024 ---
+  - DOMAIN-SUFFIX,zsh.tw,TW
+  - DOMAIN-SUFFIX,t66y.com,HK
+  - DOMAIN-SUFFIX,x.com,Proxy
+
+  # --- 群暉/本地設備 ---
+  - DOMAIN-SUFFIX,synology.com,DIRECT
+  - DOMAIN-SUFFIX,synology.cn,DIRECT
+  - DOMAIN-SUFFIX,quickconnect.to,DIRECT
+  - DOMAIN-SUFFIX,quickconnect.cn,DIRECT
+  - DOMAIN-KEYWORD,synology,DIRECT
+
+  # --- 业务分流 (引用远程 Providers) ---
+  - RULE-SET,Telegram,Telegram
+  - RULE-SET,AI,AI
+  - DOMAIN-SUFFIX,bing.com,AI
+  - RULE-SET,GitHub,GitHub
+  - RULE-SET,Steam,Steam
+  - RULE-SET,Google,Google
+  - RULE-SET,Apple,Apple
+  - RULE-SET,Microsoft,Microsoft
+
+  # --- 视频解锁 ---
+  - DOMAIN-SUFFIX,bilibili.com,Unlock
+  - DOMAIN-SUFFIX,iqiyi.com,Unlock
+
+  # --- [新增] 黑名单分流 (专门识别被屏蔽网站) ---
+  # 放在国内规则之前，确保被屏蔽但没在上方业务组的网站能走代理
+  - RULE-SET,GFWList,Proxy
+
+  # --- 兜底规则 (放在最后) ---
+  # 1. 国内域名识别 (Domain 预判)
+  - RULE-SET,China,DIRECT
+
+  # 2. 国内 IP 识别 (IP 判定，no-resolve 防止因解析导致的漏网之鱼)
+  - RULE-SET,ChinaIP,DIRECT,no-resolve
+  - GEOIP,CN,DIRECT,no-resolve
+
+  # 3. 最终匹配
+  - MATCH,Final
