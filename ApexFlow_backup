@@ -1,0 +1,87 @@
+[General]
+# TitanFlow Professional Configuration
+bypass-system = true
+ipv6 = false
+prefer-ipv6 = false
+dns-direct-system = true
+dns-direct-fallback-proxy = true
+icmp-auto-reply = true
+private-ip-answer = true
+block-quic = all
+# 增加本地代理直连绕过，优化 App 兼容性
+skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, localhost, *.local
+# 核心排除路由
+tun-excluded-routes = 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 255.255.255.255/32, 239.255.255.250/32
+
+[Proxy Group]
+Auto = url-test,interval=600,tolerance=10,timeout=3,select=0,use=*,policy-regex-filter=(?i)(HK|TW|JP|SG|US)
+HK = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)HK|香港
+TW = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)TW|台湾
+JP = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)JP|日本
+US = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)US|美国
+SG = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)SG|新加坡
+
+AI = select,Auto,HK,TW,JP,SG,US,policy-select-name=TW
+YouTube = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
+MAX = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
+SPOTIFY = select,DIRECT,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
+TELEGRAM = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
+PAYPAL = select,DIRECT,Auto,US,policy-select-name=US
+TWITTER = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
+FACEBOOK = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
+AMAZON = select,DIRECT,Auto,US,policy-select-name=Auto
+GAMING = select,DIRECT,Auto,HK,TW,JP,SG,US,policy-select-name=HK
+MICROSOFT = select,DIRECT,Auto,TW,policy-select-name=TW
+GOOGLE = select,Auto,TW,policy-select-name=TW
+APPLE = select,DIRECT,Auto,TW,policy-select-name=TW
+TIKTOK = select,Auto,US,policy-select-name=US
+Final = select,Auto,DIRECT,policy-select-name=Auto
+
+[Rule]
+# 1. Tailscale 内网直连 (必须置顶)
+IP-CIDR,100.64.0.0/10,Home_Mac_Funnel
+IP-CIDR,192.168.10.0/24,Home_Mac_Funnel
+# 2. 拦截 QUIC 协议防止断流
+AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
+
+# 3. 核心规则集
+RULE-SET,https://raw.githubusercontent.com/iab0x00/ProxyRules/main/Rule/AI.txt,AI
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/YouTube/YouTube.list,YouTube
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Netflix/Netflix.list,MAX
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/HBO/HBO.list,MAX
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Spotify/Spotify.list,SPOTIFY
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Telegram/Telegram.list,TELEGRAM
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/PayPal/PayPal.list,PAYPAL
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Twitter/Twitter.list,TWITTER
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Facebook/FACEBOOK.list,FACEBOOK
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Amazon/Amazon.list,AMAZON
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Steam/Steam.list,GAMING
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Game/Game.list,GAMING
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/GitHub/GitHub.list,Auto
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Microsoft/Microsoft.list,MICROSOFT
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Google/Google.list,GOOGLE
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Apple/Apple.list,APPLE
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/TikTok/TikTok.list,TIKTOK
+
+# 4. 兜底与广告
+RULE-SET,https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt,Auto
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Advertising/Advertising.list,REJECT
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Privacy/Privacy.list,REJECT
+
+GEOIP,CN,DIRECT
+FINAL,Final
+
+[Host]
+*.apple.com = server:system
+*.icloud.com = server:system
+localhost = 127.0.0.1
+
+https://ahrefs.com/writing-tools/paragraph-rewriter
+^https?://(www.)?g.cn https://www.google.com 302
+^https?://(www.)?google.cn https://www.google.com 302
+
+[MITM]
+enable = true
+# 最小化 MITM 范围，减少性能损耗
+hostname = *.google.cn, *.gstatic.com
+这是原来的规则
