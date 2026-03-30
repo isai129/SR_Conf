@@ -15,11 +15,11 @@ tun-excluded-routes = 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 17
 
 [Proxy Group]
 Auto = url-test,interval=600,tolerance=10,timeout=3,select=0,use=*,policy-regex-filter=(?i)(HK|TW|JP|SG|US)
-HK = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)HK|香港
-TW = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)TW|台湾
-JP = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)JP|日本
-US = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)US|美国
-SG = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)SG|新加坡
+HK = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)HK|香港|九龍|波瀾|嘉禾|安魂|鎧甲|契約|奇點|判官|靈魂"
+TW = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)TW|台灣|台北|彰化|寶島|動畫瘋"
+JP = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)JP|日本|東京|大和|柯南|星移"
+US = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)US|美國|加州|川譜|神像|勝地|空靈"
+SG = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)SG|新加坡|星島|烈焰"
 
 AI = select,Auto,HK,TW,JP,SG,US,policy-select-name=TW
 YouTube = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
