@@ -1,4 +1,8 @@
+# Shadowrocket: 2026-10-22 23:05 (基于手机导出 22:07:52 + 审查修正)
 [General]
+direct-dns-server = 
+fallback-dns-server = https://1.1.1.1/dns-query,https://dns.google/dns-query
+dns-server = 1.1.1.1,1.0.0.1,8.8.8.8
 # TitanFlow Professional Configuration
 bypass-system = true
 ipv6 = false
@@ -6,21 +10,26 @@ prefer-ipv6 = false
 dns-direct-system = true
 dns-direct-fallback-proxy = true
 icmp-auto-reply = true
-private-ip-answer = true
+private-ip-answer = false
 block-quic = all
-# 增加本地代理直连绕过，优化 App 兼容性
-skip-proxy = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, localhost, *.local
+# [FIX] skip-proxy 去掉了两个无效项（https://…dns-query 不是主机/IP，SR 不认）
+skip-proxy = 192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,localhost,*.local
 # 核心排除路由
 tun-excluded-routes = 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 255.255.255.255/32, 239.255.255.250/32
+update-url = https://raw.githubusercontent.com/isai129/SR_Conf/refs/heads/main/ApexFlow_backup
 
 [Proxy Group]
-Auto = url-test,interval=600,tolerance=10,timeout=3,select=0,use=*,policy-regex-filter=(?i)(HK|TW|JP|SG|US)
-HK = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)HK|香港|九龍|波瀾|嘉禾|安魂|鎧甲|契約|奇點|判官|靈魂"
-TW = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)TW|台灣|台北|彰化|寶島|動畫瘋"
-JP = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)JP|日本|東京|大和|柯南|星移"
-US = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)US|美國|加州|川譜|神像|勝地|空靈"
-SG = url-test,url=http://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter="(?i)SG|新加坡|星島|烈焰"
-
+# [FIX] 筛选器全部改成锚定式 ^[❶❷❸]xx.<区域>，实测用真实订阅名校验：
+#       旧写法 (?i)(HK|TW|JP|SG|US) 会把 "✖︎被墙✖︎…HK…" 等坏节点捞进自动池；锚定后垃圾=0
+# [FIX] 测速地址 http -> https（明文 204 探测会被运营商/机场劫持，健康节点被误判为死）
+# [FIX] policy-select-name 用真实节点名：原来的 ❷GR…X1 / ❸GR…V6…X1 在订阅里根本不存在（大小写与 x1 写法都不同），钉节点静默失效
+Auto = url-test,use=*,url=https://www.gstatic.com/generate_204,policy-regex-filter=(?i)^[❶❷❸][a-zA-Z0-9]{2}\.(HK|TW|JP|US|SG).*x1$,interval=600,timeout=3,tolerance=10,policy-select-name=❷gR.HK嘉禾|阿里云|NF* x1
+HK = url-test,url=https://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)^[❶❷❸][a-zA-Z0-9]{2}\.HK
+TW = url-test,use=*,url=https://www.gstatic.com/generate_204,policy-regex-filter=(?i)^[❶❷❸][a-zA-Z0-9]{2}\.TW,select=0,policy-select-name=❸gR.TW桃园|荐|NF|D+|AI x1,timeout=5,interval=3600
+JP = url-test,url=https://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)^[❶❷❸][a-zA-Z0-9]{2}\.JP
+US = url-test,use=*,url=https://www.gstatic.com/generate_204,select=0,policy-regex-filter=(?i)^[❶❷❸][a-zA-Z0-9]{2}\.US,policy-select-name=❸gR.US川谱|v6|NF|D+|AI x1,timeout=5,interval=3600
+SG = url-test,url=https://www.gstatic.com/generate_204,interval=3600,timeout=5,select=0,use=*,policy-regex-filter=(?i)^[❶❷❸][a-zA-Z0-9]{2}\.SG
+# [FIX] 组间引用统一为定义时的确切名字（AUTO->Auto，YOUTUBE->YouTube；SR 对策略名不保证大小写不敏感）
 AI = select,Auto,HK,TW,JP,SG,US,policy-select-name=TW
 YouTube = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
 MAX = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
@@ -30,17 +39,41 @@ PAYPAL = select,DIRECT,Auto,US,policy-select-name=US
 TWITTER = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
 FACEBOOK = select,Auto,HK,TW,JP,SG,US,policy-select-name=Auto
 AMAZON = select,DIRECT,Auto,US,policy-select-name=Auto
-GAMING = select,DIRECT,Auto,HK,TW,JP,SG,US,policy-select-name=HK
+GAMING = select,DIRECT,Auto,HK,TW,JP,SG,US,policy-select-name=TW
 MICROSOFT = select,DIRECT,Auto,TW,policy-select-name=TW
-GOOGLE = select,Auto,TW,policy-select-name=TW
-APPLE = select,DIRECT,Auto,TW,policy-select-name=TW
+GOOGLE = select,Auto,TW,US,policy-select-name=TW
+APPLE = select,DIRECT,Auto,TW,US,policy-select-name=US
 TIKTOK = select,Auto,US,policy-select-name=US
 Final = select,Auto,DIRECT,policy-select-name=Auto
 
 [Rule]
-# 1. Tailscale 内网直连 (必须置顶)
-IP-CIDR,100.64.0.0/10,Home_Mac_Funnel
-IP-CIDR,192.168.10.0/24,Home_Mac_Funnel
+# [FIX] 原目标 TAILSCALE / HOME_MAC_FUNNEL 是未定义策略（既不是 SR 内置的 DIRECT/PROXY/REJECT，
+#       [Proxy Group] 里也没有）。目前没出事只是因为 tun-excluded-routes 已把这些段挡在虚拟网卡外，
+#       流量根本进不了规则引擎；改成显式 DIRECT，以后改 tun-excluded-routes 也不会踩坑。
+DOMAIN-SUFFIX,*.ts.net,DIRECT,pre-matching,extended-matching
+IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+IP-CIDR,192.168.10.0/24,DIRECT,no-resolve
+
+DOMAIN-SUFFIX,*.qq.com,DIRECT,pre-matching,extended-matching
+DOMAIN-KEYWORD,supercell,DIRECT,pre-matching,extended-matching
+# [FIX] 删除死规则：DOMAIN-KEYWORD,supercell,PROXY（首条匹配即生效，这条永不命中；
+#       若 Clash Royale 想走代理，删掉上面的 DIRECT 那条再放回来）
+DOMAIN-SUFFIX,game.clashroyaleapp.com,DIRECT
+DOMAIN-KEYWORD,weixin,DIRECT,pre-matching,extended-matching
+DOMAIN-KEYWORD,Alipay,DIRECT,pre-matching,extended-matching
+DOMAIN-KEYWORD,bilibili,DIRECT,pre-matching,extended-matching
+DOMAIN-KEYWORD,taobao,DIRECT,extended-matching
+# [FIX] 删除死规则：DOMAIN-SUFFIX,*.taobao.com,PROXY（被上面的 taobao 关键词 DIRECT 完全遮蔽）
+DOMAIN-KEYWORD,amazonaws,PROXY,pre-matching,extended-matching
+DOMAIN-KEYWORD,duolingo,PROXY,pre-matching,extended-matching
+DOMAIN-SUFFIX,globalstore.amazon.cn,DIRECT,pre-matching,extended-matching
+# DST-PORT,443,DIRECT
+DOMAIN-SUFFIX,api-cslp-emt.amazon.cn,DIRECT
+DOMAIN-KEYWORD,amazon,DIRECT,pre-matching,extended-matching
+DOMAIN-SUFFIX,*.amazon.com,DIRECT,pre-matching,extended-matching
+DOMAIN-SUFFIX,dcape-na.amazon.com,DIRECT
+DOMAIN-SUFFIX,g*.amazon.cn,DIRECT
+# 1. Tailscale 内网直连（已在文件顶部显式化为 DIRECT）
 # 2. 拦截 QUIC 协议防止断流
 AND,((PROTOCOL,UDP),(DEST-PORT,443)),REJECT
 
@@ -53,7 +86,8 @@ RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/r
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Telegram/Telegram.list,TELEGRAM
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/PayPal/PayPal.list,PAYPAL
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Twitter/Twitter.list,TWITTER
-RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Facebook/FACEBOOK.list,FACEBOOK
+# [FIX] FACEBOOK.list -> Facebook.list（原 URL 实测 HTTP 404，其余 14 个规则集 URL 均 200）
+RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Facebook/Facebook.list,FACEBOOK
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Amazon/Amazon.list,AMAZON
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Steam/Steam.list,GAMING
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Game/Game.list,GAMING
@@ -67,7 +101,6 @@ RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/r
 RULE-SET,https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/gfw.txt,Auto
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Advertising/Advertising.list,REJECT
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Privacy/Privacy.list,REJECT
-
 GEOIP,CN,DIRECT
 FINAL,Final
 
@@ -75,13 +108,3 @@ FINAL,Final
 *.apple.com = server:system
 *.icloud.com = server:system
 localhost = 127.0.0.1
-
-https://ahrefs.com/writing-tools/paragraph-rewriter
-^https?://(www.)?g.cn https://www.google.com 302
-^https?://(www.)?google.cn https://www.google.com 302
-
-[MITM]
-enable = true
-# 最小化 MITM 范围，减少性能损耗
-hostname = *.google.cn, *.gstatic.com
-这是原来的规则
