@@ -1,4 +1,4 @@
-# Shadowrocket: 2026-10-22 23:05 (基于手机导出 22:07:52 + 审查修正)
+# Shadowrocket: 2026-10-23 07:40 (审查修正 v2: tun-excluded-routes 移除 100.64.0.0/10，让 SR 内嵌 Tailscale 接管 tailnet 流量)
 [General]
 direct-dns-server = 
 fallback-dns-server = https://1.1.1.1/dns-query,https://dns.google/dns-query
@@ -15,7 +15,7 @@ block-quic = all
 # [FIX] skip-proxy 去掉了两个无效项（https://…dns-query 不是主机/IP，SR 不认）
 skip-proxy = 192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,localhost,*.local
 # 核心排除路由
-tun-excluded-routes = 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 255.255.255.255/32, 239.255.255.250/32
+tun-excluded-routes = 10.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 255.255.255.255/32, 239.255.255.250/32
 update-url = https://raw.githubusercontent.com/isai129/SR_Conf/refs/heads/main/ApexFlow_backup
 
 [Proxy Group]
@@ -48,8 +48,10 @@ Final = select,Auto,DIRECT,policy-select-name=Auto
 
 [Rule]
 # [FIX] 原目标 TAILSCALE / HOME_MAC_FUNNEL 是未定义策略（既不是 SR 内置的 DIRECT/PROXY/REJECT，
-#       [Proxy Group] 里也没有）。目前没出事只是因为 tun-excluded-routes 已把这些段挡在虚拟网卡外，
-#       流量根本进不了规则引擎；改成显式 DIRECT，以后改 tun-excluded-routes 也不会踩坑。
+#       [Proxy Group] 里也没有）；改成显式 DIRECT。
+# [FIX v2] tun-excluded-routes 已移除 100.64.0.0/10：之前该排除会让 tailnet 流量绕过 SR，
+#       内嵌 Tailscale 收不到包（现象：node 设备短暂上线后掉线、ping 超时）。
+#       现在 tailnet 流量进入 SR，由内嵌 Tailscale 接管；下面的 DIRECT 规则保证不走代理节点。
 DOMAIN-SUFFIX,*.ts.net,DIRECT,pre-matching,extended-matching
 IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
 IP-CIDR,192.168.10.0/24,DIRECT,no-resolve
