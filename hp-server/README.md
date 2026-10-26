@@ -1,32 +1,31 @@
-# hp-server · 原生 TProxy 部署模板（脱敏）
+# hp-server · Native TProxy Deployment Template (Sanitized)
 
-本目录是 OpenClaw 网关机 hp-server（Fedora 43）的 mihomo 原生透明代理模板，
-从实机运行配置脱敏而来（机场订阅链接与控制密钥已清空）。
+This directory contains the mihomo native transparent proxy template for hp-server (Fedora 43), the OpenClaw gateway machine. It is derived from the live production config with sensitive values removed (airport subscription links and control keys have been cleared).
 
-## 文件说明
+## File Description
 
-| 文件 | 作用 |
+| File | Purpose |
 |---|---|
-| `config.yaml` | mihomo 配置（TProxy 模式，tproxy-port 7893，控制端口 19090） |
-| `mihomo-ctl`  | 服务脚本：配置策略路由 + nftables 后启动/停止 mihomo |
-| `mihomo.conf` | nftables 透明代理规则（Tailscale 100.64/10 与 IPv6 ULA 已绕过） |
+| `config.yaml` | mihomo configuration (TProxy mode, tproxy-port 7893, control port 19090) |
+| `mihomo-ctl` | Service script: configures policy routing + nftables, then starts/stops mihomo |
+| `mihomo.conf` | nftables transparent proxy rules (Tailscale 100.64/10 and IPv6 ULA already bypassed) |
 
-## 手动补录清单（⚠️ 勿提交到公开仓库）
+## Manual Fill-in Checklist (⚠️ Do not commit to the public repository)
 
-1. `config.yaml` 中 `remote_sub.url`：填入机场订阅链接
-2. `config.yaml` 中 `secret`：填入控制面板密钥
-3. `./local/backup.yaml`：本地备份节点文件（自行创建）
+1. `config.yaml` `remote_sub.url`: fill in the airport subscription link
+2. `config.yaml` `secret`: fill in the control panel key
+3. `./local/backup.yaml`: local backup node file (create it yourself)
 
-## 部署步骤
+## Deployment Steps
 
 ```bash
-# 以 root 执行
+# Run as root
 install -m 755 mihomo-ctl /usr/local/bin/mihomo-ctl
 mkdir -p /etc/mihomo/{rules,sub,local}
 cp config.yaml /etc/mihomo/config.yaml
 cp mihomo.conf /etc/mihomo/mihomo.conf
-# 补录 url / secret / backup.yaml 后：
+# After filling in url / secret / backup.yaml:
 mihomo-ctl start
 ```
 
-开机自启建议用 systemd unit 调用 `mihomo-ctl start`（或沿用现有机制）。
+For auto-start on boot, use a systemd unit that calls `mihomo-ctl start` (or keep the existing mechanism).
