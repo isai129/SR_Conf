@@ -101,11 +101,11 @@ proxy-providers:
 
 # --- 5. Proxy Groups ---
 proxy-groups:
-  # 【服务总控 - 决定什么应用走哪里】
+  # 【服务总控 - 默认 Auto（跨地区全局自动测速），免手动改节点】
   - name: Proxy
     type: select
     use: [remote_sub]
-    proxies: [Fallback, Auto, HK, TW, JP, US, SG, DIRECT]
+    proxies: [Auto, Fallback, HK, TW, JP, US, SG, DIRECT]
 
   # 故障转移组（本地备份节点，过滤掉维护/公益/坏节点）
   - name: Fallback
@@ -118,31 +118,32 @@ proxy-groups:
 
   - name: AI
     type: select
-    proxies: [TW, US, JP, SG, HK, Proxy]
+    proxies: [Auto, TW, US, JP, SG, HK, Proxy]
 
   - name: GitHub
     type: select
-    proxies: [US, SG, HK, Auto, Proxy]
+    proxies: [Auto, US, SG, HK, Proxy]
 
+  # 国内直连优先，Auto 兜底
   - name: Steam
     type: select
-    proxies: [DIRECT, HK, TW, US, Proxy]
+    proxies: [DIRECT, Auto, HK, TW, US, Proxy]
 
   - name: Microsoft
     type: select
-    proxies: [DIRECT, TW, US, Proxy]
+    proxies: [DIRECT, Auto, TW, US, Proxy]
 
   - name: Apple
     type: select
-    proxies: [DIRECT, TW, HK, Auto, Proxy]
+    proxies: [DIRECT, Auto, TW, HK, Proxy]
 
   - name: Google
     type: select
-    proxies: [TW, SG, JP, HK, Auto, Proxy]
+    proxies: [Auto, TW, SG, JP, HK, Proxy]
 
   - name: Telegram
     type: select
-    proxies: [SG, HK, Auto, Proxy]
+    proxies: [Auto, SG, HK, Proxy]
 
   - name: Unlock # 国内视频解锁（针对贝塔、盛宴等回国节点）
     type: select
