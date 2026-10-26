@@ -1,0 +1,46 @@
+#!/bin/bash
+# Mihomo 物理机 TProxy 管理器 · hp-server (Fedora 43)
+# 用法：/usr/local/bin/mihomo-ctl {start|stop}
+# start = 配置策略路由 + nftables 透明代理，再启动 mihomo
+# 注：192.168.10.0/24 为本机所在家庭 LAN，如网络有变请同步修改本脚本与 mihomo.conf
+
+ACTION=$1
+CONFIG_DIR="/etc/mihomo"
+BIN="/usr/local/sbin/mihomo"
+
+setup_network() {
+    echo "正在配置策略路由与防火墙..."
+    # 1. 基础路由
+    ip rule add to 192.168.10.0/24 lookup main priority 5 2>/dev/null
+    ip rule add from 192.168.10.0/24 lookup main priority 6 2>/dev/null
+    ip rule add fwmark 1 lookup 100 2>/dev/null
+    ip route add local default dev lo table 100 2>/dev/null
+    # 2. 加载防火墙 (使用最稳健的语法)
+    nft -f ${CONFIG_DIR}/mihomo.conf
+}
+
+cleanup_network() {
+    echo "正在清理网络规则..."
+    ip rule del priority 5 2>/dev/null
+    ip rule del priority 6 2>/dev/null
+    ip rule del fwmark 1 lookup 100 2>/dev/null
+    ip route del local default dev lo table 100 2>/dev/null
+    nft delete table inet mihomo 2>/dev/null
+}
+
+case "$ACTION" in
+    start)
+        cleanup_network
+        setup_network
+        echo "启动 Mihomo..."
+        $BIN -d $CONFIG_DIR
+        ;;
+    stop)
+        pkill -9 mihomo
+        cleanup_network
+        ;;
+    *)
+        echo "Usage: $0 {start|stop}"
+        exit 1
+        ;;
+esac

@@ -2,13 +2,18 @@
 # This configuration file automatically selects the proxy node with the lowest network latency, requiring no manual intervention—all processes are fully automated. When connected to a router equipped with a transparent proxy, Loon will use the "DIRECT" policy, routing all traffic directly through your router; in other network environments, Loon will employ its own "Rule Base" mode to access these websites, thereby avoiding double proxying when already using a transparent proxy router.
 # Date: 2025-11-08 00:21:37
 # Author: https://t.me/iKeLee
+# 本地化优化（SR_Conf）：
+#   - 修复 Final Fallback 引用不存在的 "Auto Profile" 组 -> "Auto Policy"
+#   - GEOIP us -> CN；IP-CIDR 28.0.0.1/8 笔误修正为 28.0.0.0/8
+#   - DoH 优先阿里/腾讯公共 DoH，Cloudflare/Google 兜底
+#   - 新增 Tailscale ts.net / 100.64.0.0/10 直连规则
 
 [General]
 ip-mode=v4-only
 ipv6-vif=off
 dns-server=system
-# Cloudflare and Goole DoH
-doh-server=https://1.1.1.1/dns-query, https://dns.google/dns-query
+# 国内 DoH 优先，海外 DoH 兜底
+doh-server=https://dns.alidns.com/dns-query, https://doh.pub/dns-query, https://1.1.1.1/dns-query, https://dns.google/dns-query
 sni-sniffing=true
 disable-stun=true
 dns-reject-mode=LoopbackIP
@@ -76,23 +81,28 @@ SG Auto Policy=url-test, SG Nodes, interval=60, tolerance=50, img-url=https://ra
 US Auto Policy=url-test, US Nodes, interval=60, tolerance=50, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/US.png
 # --------------------------------
 # Final Fallback Policy
-Final Fallback=fallback, HK Auto Profile, TW Auto Profile, JP Auto Profile, KR Auto Profile, SG Auto Profile, US Auto Profile, interval=60, max-timeout=2000, img-url=https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/fallback.png
+# （修复：原模板误写为 "Auto Profile"，实际组名为 "Auto Policy"）
+Final Fallback=fallback, HK Auto Policy, TW Auto Policy, JP Auto Policy, KR Auto Policy, SG Auto Policy, US Auto Policy, interval=60, max-timeout=2000, img-url=https://github.com/shindgewongxj/WHATSINStash/raw/main/icon/fallback.png
 
 [Rule]
 # Local Rule
 # Type:DOMAIN-SUFFIX,DOMAIN,DOMAIN-KEYWORD,USER-AGENT,URL-REGEX,IP-CIDR,IP-CIDR6,IP-ASN
 # Strategy:DIRECT,PROXY,REJECT
 # Options:no-resolve(only for cidr)
-# IP-CIDR, 192.168.0.0/16, DIRECT
-# IP-CIDR, 10.0.0.0/8, DIRECT
-# IP-CIDR, 172.16.0.0/12, DIRECT
-# IP-CIDR, 127.0.0.0/8, DIRECT
-# Replace "us" in the following line with the English abbreviation of your country.
-IP-CIDR, 28.0.0.1/8, DIRECT
-IP-CIDR, 198.18.0.1/16, DIRECT
+IP-CIDR, 127.0.0.0/8, DIRECT
+IP-CIDR, 192.168.0.0/16, DIRECT
+IP-CIDR, 10.0.0.0/8, DIRECT
+IP-CIDR, 172.16.0.0/12, DIRECT
+# Tailscale 直连（ts.net + 100.64.0.0/10）
+DOMAIN-SUFFIX, ts.net, DIRECT
+DOMAIN-SUFFIX, tailscale.net, DIRECT
+DOMAIN-SUFFIX, tailscale.com, DIRECT
+IP-CIDR, 100.64.0.0/10, DIRECT
+IP-CIDR, 100.100.100.100/32, DIRECT
+IP-CIDR, 28.0.0.0/8, DIRECT
 IP-CIDR, 198.18.0.0/15, DIRECT
 IP-CIDR6, fc00::/18, DIRECT
-GEOIP, us, DIRECT
+GEOIP, CN, DIRECT
 # This line below does not need any modification.
 FINAL, Final Fallback
 

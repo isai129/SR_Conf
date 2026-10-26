@@ -1,40 +1,55 @@
 # ==========================================================
-# Mihomo (Clash Meta) Final Fix - All Rules Valid
+# Mihomo (Clash Meta) 配置 · Vostro 3030 (Fedora 44 + Docker)
+# 部署方式：docker-compose.yml（host 网络 + TUN，公司电脑慎用 TUN，见下）
+# 网络环境：Tailscale 网内网关机（100.64.0.0/10, *.ts.net）
+# ==========================================================
+# 优化点（相对旧版）：
+#   1. Tailscale 兼容：*.ts.net / *.tailscale.net 走真实解析(100.100.100.100)
+#      + 100.64.0.0/10 显式直连（不再依赖 Private 规则集兜底）
+#   2. 机场订阅链接已清空为占位符 —— 手动补录，切勿提交真实链接到公开仓库
+#   3. 本地备份节点文件路径改为 ./local/backup.yaml（不再使用机场域名命名）
+#   4. Auto 组加入 exclude-filter / timeout / expected-statuses，避免选中坏节点
+#   5. 公司电脑风险提示：TUN auto-route 会接管宿主机全部路由与 DNS，
+#      若公司 VPN/代理软件冲突，将 tun.enable 改为 false 即退回纯代理服务器模式
 # ==========================================================
 
 port: 7890
 socks-port: 7891
 mixed-port: 7892
-allow-lan: true
+allow-lan: true          # 网内其它机器（hp-server 等）可通过 Tailscale IP:7892 使用
 mode: Rule
 log-level: warning
 unified-delay: true
 external-controller: 0.0.0.0:9090
-secret: 
+secret:                  # 公司局域网内建议设置 secret（或把 controller 绑到 Tailscale IP），
+                         # 否则同网段任何人都能改你的分流；设置后需同步改 docker-compose 健康检查
 experimental:
   ignore-resolve-fail: true
 
 # --- 1. 核心控制与嗅探 ---
-# 开启嗅探，提升分流准确度
 sniffer:
   enable: true
   sniff:
-    TLS: {ports: [443, 8443]}
-    HTTP: {ports: [80, 8080-8888], override-destination: true}
-  skip-certs: true # 解决某些 HTTPS 网站证书校验导致连接中断的问题
+    TLS: { ports: [443, 8443] }
+    HTTP: { ports: [80, 8080-8888], override-destination: true }
+    QUIC: { ports: [443] }   # 强制 UDP 443 按域名分流，避免 QUIC 绕代理
+  skip-certs: true
 
-# --- 2. TUN 网络模式 (针对 Fedora Host 模式) ---
+# --- 2. TUN 网络模式 (Fedora 44 + Docker host 网络) ---
+# 公司电脑注意：auto-route + strict-route 会把宿主机默认路由和 DNS 全部接管，
+# 若与公司 VPN / 802.1x / 监控代理冲突，把 enable 改为 false（容器变成纯代理服务器，
+# 本机应用改用系统代理 http://127.0.0.1:7892，其它机器仍走 Tailscale IP:7892）。
 tun:
   enable: true
-  stack: system  # Fedora 上性能与兼容性最好的栈
-  device: mihomo  # 显式指定名称
-  auto-route: true   # 容器内手动控制路由更稳，避免接管宿主机网关
+  stack: system          # host 网络下 system 栈兼容性最好
+  device: mihomo
+  auto-route: true
   auto-detect-interface: true
   dns-hijack: [any:53]
   strict-route: true
-  mtu: 1500           # 修复 MTU 导致的分片丢包问题
-  endpoint-independent-forwarding: true # 提升 NAT 兼容性
-  udp-timeout: 300 # 延长 UDP 会话，对游戏和语音更有利
+  mtu: 1500
+  endpoint-independent-forwarding: true
+  udp-timeout: 300
 
 # --- 3. DNS 分流与 Fake-IP ---
 dns:
@@ -42,59 +57,65 @@ dns:
   ipv6: false
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
-  # 国内域名走国内 DNS，防止 Fake-IP 污染
+  # Tailscale MagicDNS 必须走真实解析：ts.net 域名交给 100.100.100.100
+  # （hp-server 上 MagicDNS 因 resolv.conf 受限失效，此策略是实测过的绕法）
   nameserver-policy:
+    "+.ts.net": 100.100.100.100
+    "+.tailscale.net": 100.100.100.100
     "geosite:cn": [223.5.5.5, 119.29.29.29]
     "geosite:geolocation-!cn": [https://dns.alidns.com/dns-query]
   default-nameserver: [223.5.5.5, 119.29.29.29]
   nameserver:
     - https://dns.alidns.com/dns-query
     - https://doh.pub/dns-query
-  # 关键过滤，确保国内流量和本地服务不进代理
   fake-ip-filter:
-    - "*.lan"
-    - "*.local"
+    - "+.lan"
+    - "+.local"
+    - "+.ts.net"          # 关键：Tailscale 域名不进 Fake-IP
+    - "+.tailscale.net"
     - "geosite:cn"
     - "geosite:private"
-    - "*.apple.com"
-    - "*.icloud.com"
     - "msftconnecttest.com"
     - "msftncsi.com"
 
-# --- 3. Providers ---
+# --- 4. Providers（机场链接保持隐藏，手动补录） ---
 proxy-providers:
-  local_nodes:
+  # 【静态源】本地手动备份节点（文件不在仓库内，自行创建 ./local/backup.yaml）
+  local_backup:
     type: file
-    path: ./zhs.tw.yaml
+    path: ./local/backup.yaml
     health-check:
       enable: true
-      interval: 7200 # 2小时后台静默检查
+      interval: 7200
       url: http://www.gstatic.com/generate_204
+  # 【动态源】机场订阅 —— url 留空待补录
   remote_sub:
     type: http
-    url:  # <--- 请填入机场链接
+    url: ""                # <--- 手动填入机场订阅链接（勿提交到公开仓库）
     interval: 86400
     path: ./sub/airport.yaml
     health-check:
       enable: true
-      interval: 7200 # 2小时后台静默检查
+      interval: 7200
       url: http://www.gstatic.com/generate_204
 
-# --- 4. Proxy Groups ---
+# --- 5. Proxy Groups ---
 proxy-groups:
- # 【1. 服务总控 - 决定什么应用走哪里】
+  # 【服务总控 - 决定什么应用走哪里】
   - name: Proxy
     type: select
     use: [remote_sub]
-    proxies: [Fallback,Auto, HK, TW, JP, US, SG, DIRECT]
-    
- #  故障转移组
+    proxies: [Fallback, Auto, HK, TW, JP, US, SG, DIRECT]
+
+  # 故障转移组（本地备份节点，过滤掉维护/公益/坏节点）
   - name: Fallback
     type: fallback
-    use: [local_nodes]
+    use: [local_backup]
+    filter: "(?i)HK|TW|JP|US|SG|港|台|日|美|新"
+    exclude-filter: "(?i)维护|維修|被墙|牆|公益|备用|備用|x0[.]8|x5|流量|過期|过期|买游戏|盛宴|注册Netflix"
     url: http://www.gstatic.com/generate_204
-    interval: 600 # 10分钟检查一次
-    
+    interval: 600
+
   - name: AI
     type: select
     proxies: [TW, US, JP, SG, HK, Proxy]
@@ -109,7 +130,7 @@ proxy-groups:
 
   - name: Microsoft
     type: select
-    proxies: [DIRECT,TW, US, Proxy]
+    proxies: [DIRECT, TW, US, Proxy]
 
   - name: Apple
     type: select
@@ -117,29 +138,34 @@ proxy-groups:
 
   - name: Google
     type: select
-    proxies: [TW, SG, JP, HK,Auto, Proxy]
+    proxies: [TW, SG, JP, HK, Auto, Proxy]
 
   - name: Telegram
     type: select
-    proxies: [Auto, SG, HK, Proxy]
+    proxies: [SG, HK, Auto, Proxy]
 
-  - name: Unlock # 国内视频解锁（针对贝塔、盛宴节点）
+  - name: Unlock # 国内视频解锁（针对贝塔、盛宴等回国节点）
     type: select
     use: [remote_sub]
     filter: "(?i)CN|中国|貝塔|贝塔|盛宴"
     proxies:
       - DIRECT
 
-  # 【地区池 - 纯物理筛选，已开启懒加载】
+  # 【自动优选 - 唯一持续测速的组】
   - name: Auto
     type: url-test
     use: [remote_sub]
-    filter: "^(?i)(?!.*x5).*(HK|TW|JP|US|SG)" # 自动优选排除 x5 节点
-    interval: 1800 # 0.5小时测速一次
+    filter: "(?i)HK|TW|JP|US|SG|港|台|日|美|新"
+    exclude-filter: "(?i)维护|維修|被墙|牆|公益|备用|備用|x0[.]8|x5|流量|過期|过期|买游戏|盛宴|注册Netflix"
+    interval: 1800
     tolerance: 50
-    lazy: false #关闭只有切换到此组才激活测速，解决测速频繁问题
+    lazy: false
+    timeout: 2000
+    max-failed-times: 2
+    expected-statuses: [204, 302]
     url: http://www.gstatic.com/generate_204
 
+  # 【地区池 - 懒加载，不占用测速资源】
   - name: HK
     type: url-test
     use: [remote_sub]
@@ -159,8 +185,9 @@ proxy-groups:
     type: url-test
     use: [remote_sub]
     filter: "(?i)JP|日本|東京|大和|柯南|星移"
+    interval: 3600
     tolerance: 50
-    lazy: false
+    lazy: true
 
   - name: US
     type: url-test
@@ -180,9 +207,8 @@ proxy-groups:
     type: select
     proxies: [Proxy, DIRECT]
 
-# --- 5. Rule Providers (补全 Private 修正 404) ---
+# --- 6. Rule Providers ---
 rule-providers:
-  # --- 基础库 ( Loyalsoldier 源，行为修正为 domain/ipcidr 以免解析报错 ) ---
   Ads:
     type: http
     behavior: domain
@@ -196,8 +222,7 @@ rule-providers:
     path: ./rules/private.yaml
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/private.txt
     interval: 86400
-   
-  # --- 专项黑名单 (被屏蔽的网站直达) ---
+
   GFWList:
     type: http
     behavior: domain
@@ -219,7 +244,6 @@ rule-providers:
     url: https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/cncidr.txt
     interval: 86400
 
-  # --- 专项库 ( Blackmatrix7 源，使用 classical 行为兼容 YAML 格式 ) ---
   AI:
     type: http
     behavior: classical
@@ -233,7 +257,7 @@ rule-providers:
     path: ./rules/github.yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub.yaml
     interval: 86400
-    
+
   Docker:
     type: http
     behavior: classical
@@ -275,42 +299,41 @@ rule-providers:
     path: ./rules/microsoft.yaml
     url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Microsoft/Microsoft.yaml
     interval: 86400
-   
 
-# --- 6. Rules 分流 ---
+# --- 7. Rules 分流 ---
 rules:
-  # ------------------------------------------------------------
-  # 【自定义 - 优先级最高】在此处添加你的单条临时规则
-  # ------------------------------------------------------------
-  # - DOMAIN,example.com,DIRECT              # 精确匹配域名
-  # - DOMAIN-SUFFIX,google.com,Proxy         # 后缀匹配（最推荐）
-  # - DOMAIN-KEYWORD,openai,AI               # 关键字匹配
-  # - IP-CIDR,1.1.1.1/32,HK,no-resolve       # 单个 IP 匹配
-  # - IP-CIDR,192.168.1.0/24,DIRECT          # 局域网绕过
-  
-  # --- 基础过滤 (必须放在前面) ---
+  # 基础过滤与局域网绕过（必须最前）
   - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
-  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve      # 补充常见局域网段
-  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve   # 补充常见局域网段
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
   - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
-  - IP-CIDR,192.254.0.0/16,DIRECT,no-resolve  
+  - IP-CIDR,192.254.0.0/16,DIRECT,no-resolve
   - RULE-SET,Ads,REJECT
   - RULE-SET,Private,DIRECT
   - IP-CIDR6,::/0,REJECT,no-resolve
 
-  # --- 1024 --- 
+  # Tailscale 兼容规则（关键，须在业务分流之前）
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,100.100.100.100/32,DIRECT,no-resolve
+  - DOMAIN-SUFFIX,ts.net,DIRECT
+  - DOMAIN-SUFFIX,tailscale.net,DIRECT
+  - DOMAIN-SUFFIX,tailscale.com,DIRECT
+
+  # 特殊域名
   - DOMAIN-SUFFIX,t66y.com,HK
   - DOMAIN-SUFFIX,x.com,Proxy
-  - DOMAIN-SUFFIX,zhs.tw,TW
-  
+  - DOMAIN-KEYWORD,openai,AI
+  - DOMAIN-KEYWORD,anthropic,AI
 
-  # --- 群暉/本地設備 ---
+  # 本地设备 / 群晖
   - DOMAIN-SUFFIX,synology.com,DIRECT
+  - DOMAIN-SUFFIX,synology.cn,DIRECT
   - DOMAIN-SUFFIX,quickconnect.to,DIRECT
-  - DOMAIN-KEYWORD,nas,DIRECT    
+  - DOMAIN-SUFFIX,quickconnect.cn,DIRECT
+  - DOMAIN-KEYWORD,nas,DIRECT
 
-  # --- 业务分流 (引用远程 Providers) ---
-  - RULE-SET,Docker,Proxy   # 强制 Docker 镜像拉取走代理
+  # 业务分流
+  - RULE-SET,Docker,Proxy
   - RULE-SET,Telegram,Telegram
   - RULE-SET,AI,AI
   - DOMAIN-SUFFIX,bing.com,AI
@@ -320,21 +343,15 @@ rules:
   - RULE-SET,Apple,Apple
   - RULE-SET,Microsoft,Microsoft
 
-  # --- 视频解锁 ---
+  # 视频解锁
   - DOMAIN-SUFFIX,bilibili.com,Unlock
   - DOMAIN-SUFFIX,iqiyi.com,Unlock
 
-  # --- [新增] 黑名单分流 (专门识别被屏蔽网站) ---
-  # 放在国内规则之前，确保被屏蔽但没在上方业务组的网站能走代理
+  # 被墙名单（放在国内名单之前）
   - RULE-SET,GFWList,Proxy
 
-  # --- 兜底规则 (放在最后) ---
-  # 1. 国内域名识别 (Domain 预判)
+  # 兜底：国内直连 → 其余走 Final
   - RULE-SET,China,DIRECT
-  
-  # 2. 国内 IP 识别 (IP 判定，no-resolve 防止因解析导致的漏网之鱼)
   - RULE-SET,ChinaIP,DIRECT,no-resolve
   - GEOIP,CN,DIRECT,no-resolve
-
-  # 3. 最终匹配
   - MATCH,Final

@@ -48,9 +48,13 @@ dns:
   nameserver-policy:
     "geosite:cn": [223.5.5.5, 119.29.29.29]
     "geosite:geolocation-!cn": [https://dns.cloudflare.com/dns-query, https://dns.google/dns-query]
+    "+.ts.net": 100.100.100.100          # Tailscale MagicDNS 走真實解析
+    "+.tailscale.net": 100.100.100.100
   fake-ip-filter:
     - "*.lan"
     - "*.local"
+    - "*.ts.net"                          # 關鍵：Tailscale 域名不進 Fake-IP
+    - "*.tailscale.net"
     - "geosite:cn"
     - "geosite:private"
     - "+.apple.com"
@@ -61,7 +65,7 @@ proxy-providers:
   # 【動態源】遠程訂閱鏈接，內核會自動在 path 路徑下生成快照
   remote_sub:
     type: http
-    url: "https://" # <--- 請在此處填入鏈接
+    url: "https://" # <--- 請在此處填入鏈接（勿提交到公開倉庫）
     interval: 86400
     path: ./sub/airport_dynamic.yaml
     client-fingerprint: chrome # [修复] 移动到此处，解决全局弃用报错
@@ -289,9 +293,16 @@ rules:
   - IP-CIDR6,::/0,REJECT,no-resolve
 
   # --- 1024 ---
-  - DOMAIN-SUFFIX,zsh.tw,TW
+  # (原 zsh.tw 規則已移除：域名與機場相關，避免公開倉庫泄露)
   - DOMAIN-SUFFIX,t66y.com,HK
   - DOMAIN-SUFFIX,x.com,Proxy
+
+  # --- Tailscale 直連 (必須在業務分流之前) ---
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,100.100.100.100/32,DIRECT,no-resolve
+  - DOMAIN-SUFFIX,ts.net,DIRECT
+  - DOMAIN-SUFFIX,tailscale.net,DIRECT
+  - DOMAIN-SUFFIX,tailscale.com,DIRECT
 
   # --- 群暉/本地設備 ---
   - DOMAIN-SUFFIX,synology.com,DIRECT

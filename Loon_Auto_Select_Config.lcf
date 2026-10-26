@@ -2,13 +2,17 @@
 # This configuration file automatically selects the node with the lowest network latency without any manual intervention; the entire process is fully automated.
 # Date: 2025-11-08 00:21:37
 # Author: https://t.me/iKeLee
+# 本地化优化（SR_Conf）：
+#   - GEOIP us -> CN（中国网络）
+#   - DoH 优先阿里/腾讯公共 DoH，Cloudflare/Google 兜底
+#   - 新增 Tailscale ts.net / 100.64.0.0/10 直连规则
 
 [General]
 ip-mode=v4-only
 ipv6-vif=off
 dns-server=system
-# Cloudflare and Goole DoH
-doh-server=https://1.1.1.1/dns-query, https://dns.google/dns-query
+# 国内 DoH 优先，海外 DoH 兜底
+doh-server=https://dns.alidns.com/dns-query, https://doh.pub/dns-query, https://1.1.1.1/dns-query, https://dns.google/dns-query
 sni-sniffing=true
 disable-stun=true
 dns-reject-mode=LoopbackIP
@@ -63,12 +67,18 @@ Global Select=select, Global Nodes, img-url=https://raw.githubusercontent.com/Or
 # Type:DOMAIN-SUFFIX,DOMAIN,DOMAIN-KEYWORD,USER-AGENT,URL-REGEX,IP-CIDR,IP-CIDR6,IP-ASN
 # Strategy:DIRECT,PROXY,REJECT
 # Options:no-resolve(only for cidr)
-# IP-CIDR, 192.168.0.0/16, DIRECT
-# IP-CIDR, 10.0.0.0/8, DIRECT
-# IP-CIDR, 172.16.0.0/12, DIRECT
-# IP-CIDR, 127.0.0.0/8, DIRECT
-# Replace "us" in the following line with the English abbreviation of your country.
-GEOIP, us, DIRECT
+IP-CIDR, 127.0.0.0/8, DIRECT
+IP-CIDR, 192.168.0.0/16, DIRECT
+IP-CIDR, 10.0.0.0/8, DIRECT
+IP-CIDR, 172.16.0.0/12, DIRECT
+# Tailscale 直连（ts.net + 100.64.0.0/10）
+DOMAIN-SUFFIX, ts.net, DIRECT
+DOMAIN-SUFFIX, tailscale.net, DIRECT
+DOMAIN-SUFFIX, tailscale.com, DIRECT
+IP-CIDR, 100.64.0.0/10, DIRECT
+IP-CIDR, 100.100.100.100/32, DIRECT
+# 中国 IP 直连
+GEOIP, CN, DIRECT
 # This line below does not need any modification.
 FINAL, Final Fallback
 
