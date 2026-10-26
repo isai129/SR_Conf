@@ -116,15 +116,21 @@ proxy-groups:
     url: http://www.gstatic.com/generate_204
     interval: 600
 
+  # 【业务组 - fallback 链：地区优先，整区全挂自动降级，免手动】
+  # AI/Google 刻意 TW 优先：OpenAI 封 HK，TW 节点不被封杀且延迟低
   - name: AI
-    type: select
-    proxies: [Auto, TW, US, JP, SG, HK, Proxy]
+    type: fallback
+    proxies: [TW, US, JP, SG]
+    url: https://www.gstatic.com/generate_204
+    interval: 300
 
   - name: GitHub
-    type: select
-    proxies: [Auto, US, SG, HK, Proxy]
+    type: fallback
+    proxies: [US, SG, HK]
+    url: https://www.gstatic.com/generate_204
+    interval: 300
 
-  # 国内直连优先，Auto 兜底
+  # 国内直连优先，Auto 兜底（保留 select 可手动切）
   - name: Steam
     type: select
     proxies: [DIRECT, Auto, HK, TW, US, Proxy]
@@ -138,12 +144,16 @@ proxy-groups:
     proxies: [DIRECT, Auto, TW, HK, Proxy]
 
   - name: Google
-    type: select
-    proxies: [Auto, TW, SG, JP, HK, Proxy]
+    type: fallback
+    proxies: [TW, SG, JP, HK]
+    url: https://www.gstatic.com/generate_204
+    interval: 300
 
   - name: Telegram
-    type: select
-    proxies: [Auto, SG, HK, Proxy]
+    type: fallback
+    proxies: [SG, HK, JP]
+    url: https://www.gstatic.com/generate_204
+    interval: 300
 
   - name: Unlock # 国内视频解锁（针对贝塔、盛宴等回国节点）
     type: select
