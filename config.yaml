@@ -87,7 +87,7 @@ proxy-providers:
     health-check:
       enable: true
       interval: 7200
-      url: http://www.gstatic.com/generate_204
+      url: https://www.gstatic.com/generate_204
   # 【动态源】机场订阅 —— url 留空待补录
   remote_sub:
     type: http
@@ -97,7 +97,7 @@ proxy-providers:
     health-check:
       enable: true
       interval: 7200
-      url: http://www.gstatic.com/generate_204
+      url: https://www.gstatic.com/generate_204
 
 # --- 5. Proxy Groups ---
 proxy-groups:
@@ -113,7 +113,7 @@ proxy-groups:
     use: [local_backup]
     filter: "(?i)HK|TW|JP|US|SG|港|台|日|美|新"
     exclude-filter: "(?i)维护|維修|被墙|牆|公益|备用|備用|x0[.]8|x5|流量|過期|过期|买游戏|盛宴|注册Netflix"
-    url: http://www.gstatic.com/generate_204
+    url: https://www.gstatic.com/generate_204
     interval: 600
 
   # 【业务组 - fallback 链：地区优先，整区全挂自动降级，免手动】
@@ -174,7 +174,7 @@ proxy-groups:
     timeout: 2000
     max-failed-times: 2
     expected-statuses: [204, 302]
-    url: http://www.gstatic.com/generate_204
+    url: https://www.gstatic.com/generate_204
 
   # 【地区池 - 懒加载，不占用测速资源】
   - name: HK
