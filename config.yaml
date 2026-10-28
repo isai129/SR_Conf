@@ -321,6 +321,8 @@ rules:
   - IP-CIDR,192.254.0.0/16,DIRECT,no-resolve
   - RULE-SET,Ads,REJECT
   - RULE-SET,Private,DIRECT
+  # Tailscale IPv6 ULA 直连（必须在本机 IPv6 全拒规则之前）
+  - IP-CIDR6,fd7a:115c:a1e0::/48,DIRECT,no-resolve
   - IP-CIDR6,::/0,REJECT,no-resolve
 
   # Tailscale 兼容规则（关键，须在业务分流之前）
@@ -329,6 +331,10 @@ rules:
   - DOMAIN-SUFFIX,ts.net,DIRECT
   - DOMAIN-SUFFIX,tailscale.net,DIRECT
   - DOMAIN-SUFFIX,tailscale.com,DIRECT
+  # DERP 中继服务器直连 + WireGuard 打洞绕过代理
+  # （修复：中继流量被代理接管 → DERP 探测误判远地中继 nue 的问题）
+  - RULE-SET,tailscale-derp-direct,DIRECT
+  - DST-PORT,41641,DIRECT
 
   # 特殊域名
   - DOMAIN-SUFFIX,t66y.com,HK
