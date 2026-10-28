@@ -220,6 +220,10 @@ proxy-groups:
 
 # --- 6. Rule Providers ---
 rule-providers:
+  tailscale-derp-direct:
+    type: file
+    behavior: ipcidr
+    path: ./rules/tailscale-derp-direct.yaml
   Ads:
     type: http
     behavior: domain
